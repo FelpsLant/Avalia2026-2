@@ -67,8 +67,10 @@ export async function onRequestGet(context) {
       } catch {}
     }
 
-    const sessionPayload = JSON.stringify({ userId, username, avatar });
-    const encodedSession = btoa(encodeURIComponent(sessionPayload));
+    if (!env.SESSION_SECRET) {
+      return Response.redirect(new URL("/?auth_error=missing_session_secret", url.origin).href, 302);
+    }
+    const encodedSession = await createSessionCookie({ userId, username, avatar }, env.SESSION_SECRET);
 
     return new Response(null, {
       status: 302,
