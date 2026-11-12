@@ -1,3 +1,4 @@
+import { createSessionCookie } from "../../../_lib/session.js";
 /**
  * Cloudflare Pages Function — /api/auth/discord/callback
  * Troca o authorization code pelo token de acesso do Discord, obtém o perfil (@me)
