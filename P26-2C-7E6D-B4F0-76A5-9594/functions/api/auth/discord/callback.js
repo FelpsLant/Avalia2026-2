@@ -9,6 +9,11 @@ export async function onRequestGet(context) {
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
   const error = url.searchParams.get("error");
+  const stateParam = url.searchParams.get("state");
+  const stateCookie = (request.headers.get("Cookie") || "").match(/(?:^|;\s*)oauth_state=([^;]+)/)?.[1];
+  if (!stateParam || !stateCookie || stateParam !== stateCookie) {
+    return Response.redirect(new URL("/?auth_error=state_invalido", url.origin).href, 302);
+  }
 
   if (error || !code) {
     return Response.redirect(new URL("/?auth_error=" + encodeURIComponent(error || "missing_code"), url.origin).href, 302);
