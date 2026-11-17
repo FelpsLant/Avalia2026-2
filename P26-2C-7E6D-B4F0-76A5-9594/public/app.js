@@ -1,75 +1,178 @@
-const CHAVE_PROJETO = "P26-2C-7E6D-B4F0-76A5-9594";
+const ROTULOS = { ensino: "Ensino", pesquisa: "Pesquisa", extensao: "Extensão" };
+const $ = (id) => document.getElementById(id);
 
-const discordSession = {
-  user_id: "discord_" + CHAVE_PROJETO.slice(-4).toLowerCase(),
-  username: "Felipe",
-  avatar: "https://cdn.discordapp.com/embed/avatars/0.png",
-};
+function mostrarMsg(elemento, texto, tipo) {
+  elemento.textContent = texto;
+  elemento.className = "msg" + (tipo ? " " + tipo : "");
+}
 
-function renderDiscordHeader() {
-  const el = document.getElementById("discordUserText");
-  if (el) {
-    el.textContent = "Discord: " + discordSession.username + " (" + discordSession.user_id + ")";
+function renderUsuario(user) {
+  const area = $("userArea");
+  area.replaceChildren();
+  const box = document.createElement("div");
+  box.className = "usuario";
+  const img = document.createElement("img");
+  img.src = user.avatar;
+  img.alt = "Avatar de " + user.username;
+  const nome = document.createElement("span");
+  nome.textContent = user.username;
+  box.append(img, nome);
+  area.appendChild(box);
+}
+
+function renderBarras(horas, teto) {
+  const container = $("bars");
+  container.replaceChildren();
+  let soma = 0;
+
+  for (const cat of Object.keys(ROTULOS)) {
+    const feitas = horas[cat] || 0;
+    soma += feitas;
+    const pct = Math.min(100, Math.round((feitas / teto) * 100));
+    const faltam = Math.max(0, teto - feitas);
+
+    const barra = document.createElement("div");
+    barra.className = "barra";
+
+    const topo = document.createElement("div");
+    topo.className = "barra-topo";
+    const rotulo = document.createElement("strong");
+    rotulo.textContent = ROTULOS[cat];
+    const detalhe = document.createElement("span");
+    detalhe.textContent = feitas + " / " + teto + " h" + (faltam > 0 ? " (faltam " + faltam + " h)" : " (completo)");
+    topo.append(rotulo, detalhe);
+
+    const trilho = document.createElement("div");
+    trilho.className = "trilho";
+    trilho.setAttribute("role", "progressbar");
+    trilho.setAttribute("aria-label", ROTULOS[cat]);
+    trilho.setAttribute("aria-valuemin", "0");
+    trilho.setAttribute("aria-valuemax", String(teto));
+    trilho.setAttribute("aria-valuenow", String(feitas));
+    const preenche = document.createElement("div");
+    preenche.className = "preenche" + (pct >= 100 ? " completo" : "");
+    preenche.style.width = pct + "%";
+    trilho.appendChild(preenche);
+
+    barra.append(topo, trilho);
+    container.appendChild(barra);
+  }
+
+  const totalNecessario = teto * Object.keys(ROTULOS).length;
+  const faltamTotal = Math.max(0, totalNecessario - soma);
+  $("totalGeral").textContent = "Total: " + soma + " / " + totalNecessario + " h — faltam " + faltamTotal + " h para integralizar.";
+
+  const campo = $("horas");
+  campo.max = String(teto);
+}
+
+function renderLista(atividades) {
+  const ul = $("lista");
+  ul.replaceChildren();
+  if (atividades.length === 0) {
+    const li = document.createElement("li");
+    li.textContent = "Nenhuma atividade registrada ainda.";
+    ul.appendChild(li);
+    return;
+  }
+  for (const a of atividades) {
+    const li = document.createElement("li");
+    const esquerda = document.createElement("div");
+    const titulo = document.createElement("strong");
+    titulo.textContent = a.titulo;
+    const meta = document.createElement("div");
+    meta.className = "meta";
+    meta.textContent = (ROTULOS[a.categoria] || a.categoria) + " · " + a.horas + " h · " + a.created_at;
+    esquerda.append(titulo, meta);
+
+    const link = document.createElement("a");
+    link.href = a.link_certificado;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.textContent = "Ver certificado";
+
+    li.append(esquerda, link);
+    ul.appendChild(li);
   }
 }
 
-async function carregarStatus() {
-  const listEl = document.getElementById("recordsList");
-  try {
-    const res = await fetch("/api/status");
-    const data = await res.json();
-    listEl.innerHTML = "";
-        if (data.sessionUser) {
-      discordSession.user_id = data.sessionUser.userId;
-      discordSession.username = data.sessionUser.username;
-      discordSession.avatar = data.sessionUser.avatar || discordSession.avatar;
-      renderDiscordHeader();
-    }
-    const items = Array.isArray(data.ultimosRegistros) ? data.ultimosRegistros : [];
-    if (items.length === 0) {
-      const li = document.createElement("li");
-      li.textContent = "API Online (" + (data.d1Connected ? "D1 Conectado ✅" : "Modo Diagnóstico Serverless ✅") + "). Nenhum registro gravado ainda.";
-      listEl.appendChild(li);
-      return;
-    }
-    items.forEach((item) => {
-      const li = document.createElement("li");
-      li.textContent = "[" + (item.created_at || "agora") + "] " + item.username + " (" + item.user_id + "): " + item.conteudo;
-      listEl.appendChild(li);
-    });
-  } catch (err) {
-    listEl.innerHTML = "<li>Modo estático local. Publique no Cloudflare Pages para ativar /api/status.</li>";
+async function carregarAtividades() {
+  const res = await fetch("/api/atividades");
+  if (res.status === 401) {
+    window.location.href = "/";
+    return;
   }
+  const dados = await res.json();
+  renderBarras(dados.horas, dados.teto);
+  renderLista(dados.atividades);
 }
 
-document.getElementById("sendBtn")?.addEventListener("click", async () => {
-  const input = document.getElementById("recordInput");
-  const statusEl = document.getElementById("statusMessage");
-  const conteudo = (input.value || "").trim();
-  if (!conteudo) return;
+async function enviarAtividade(evento) {
+  evento.preventDefault();
+  const msg = $("formMsg");
+  const botao = $("btnEnviar");
 
-  statusEl.textContent = "Enviando para Cloudflare Function...";
+  const corpo = {
+    titulo: $("titulo").value.trim(),
+    categoria: $("categoria").value,
+    horas: Number($("horas").value),
+    link_certificado: $("link").value.trim(),
+  };
+
+  if (!corpo.titulo || !Number.isInteger(corpo.horas) || corpo.horas < 1 || !corpo.link_certificado) {
+    mostrarMsg(msg, "Preencha título, horas (número inteiro) e link do certificado.", "erro");
+    return;
+  }
+
+  botao.disabled = true;
+  mostrarMsg(msg, "Enviando...", "");
   try {
-    const res = await fetch("/api/status", {
+    const res = await fetch("/api/atividades", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        userId: discordSession.user_id,
-        username: discordSession.username,
-        conteudo,
-      }),
+      body: JSON.stringify(corpo),
     });
+    const dados = await res.json().catch(() => ({}));
     if (res.ok) {
-      input.value = "";
-      statusEl.textContent = "✓ Registro validado e processado na borda!";
-      await carregarStatus();
+      $("formAtividade").reset();
+      mostrarMsg(msg, "Atividade registrada!", "ok");
+      await carregarAtividades();
+    } else if (res.status === 401) {
+      window.location.href = "/";
     } else {
-      statusEl.textContent = "Erro ao registrar.";
+      mostrarMsg(msg, dados.message || "Não foi possível registrar.", "erro");
     }
   } catch {
-    statusEl.textContent = "API disponível após o deploy no Cloudflare Pages.";
+    mostrarMsg(msg, "Falha de conexão com a API.", "erro");
+  } finally {
+    botao.disabled = false;
   }
-});
+}
 
-renderDiscordHeader();
-carregarStatus();
+async function iniciar() {
+  const erro = new URLSearchParams(window.location.search).get("auth_error");
+  if (erro) {
+    const el = $("authError");
+    el.textContent = "Não foi possível entrar com o Discord (" + erro + "). Tente novamente.";
+    el.hidden = false;
+  }
+
+  let status = null;
+  try {
+    const res = await fetch("/api/status");
+    status = await res.json();
+  } catch {}
+
+  const user = status && status.sessionUser;
+  if (!user) {
+    $("loginPrompt").hidden = false;
+    return;
+  }
+
+  renderUsuario(user);
+  $("app").hidden = false;
+  $("formAtividade").addEventListener("submit", enviarAtividade);
+  await carregarAtividades();
+}
+
+iniciar();
