@@ -43,26 +43,26 @@ export async function onRequestPost({ request, env }) {
   // 2. Validações
   const titulo = typeof body.titulo === "string" ? body.titulo.trim() : "";
   if (titulo.length < 3 || titulo.length > 120) {
-    return json({ error: "titulo_invalido", message: "O título deve ter entre 3 e 120 caracteres." }, 422);
+    return json({ error: "titulo_invalido", message: "O título deve ter entre 3 e 120 caracteres." }, 400);
   }
 
   if (!CATEGORIAS.includes(body.categoria)) {
-    return json({ error: "categoria_invalida", message: "Use ensino, pesquisa ou extensao." }, 422);
+    return json({ error: "categoria_invalida", message: "Use ensino, pesquisa ou extensao." }, 400);
   }
 
   const horas = body.horas;
   if (!Number.isInteger(horas) || horas < 1 || horas > TETO_POR_CATEGORIA) {
-    return json({ error: "horas_invalidas", message: `Informe horas inteiras entre 1 e ${TETO_POR_CATEGORIA}.` }, 422);
+    return json({ error: "horas_invalidas", message: `Informe horas inteiras entre 1 e ${TETO_POR_CATEGORIA}.` }, 400);
   }
 
   let link;
   try {
     link = new URL(body.link_certificado);
   } catch {
-    return json({ error: "link_invalido", message: "Informe uma URL válida para o certificado." }, 422);
+    return json({ error: "link_invalido", message: "Informe uma URL válida para o certificado." }, 400);
   }
   if (link.protocol !== "https:") {
-    return json({ error: "link_invalido", message: "O link do certificado deve começar com https://" }, 422);
+    return json({ error: "link_invalido", message: "O link do certificado deve começar com https://" }, 400);
   }
 
   // 3. Teto por categoria, checado e gravado numa única instrução (sem corrida entre requisições)
@@ -82,7 +82,7 @@ export async function onRequestPost({ request, env }) {
       error: "teto_excedido",
       message: `O teto de ${TETO_POR_CATEGORIA}h para "${body.categoria}" seria ultrapassado. Ainda cabem ${restante}h.`,
       restante,
-    }, 422);
+    }, 409);
   }
 
   return json({ ok: true }, 201);
