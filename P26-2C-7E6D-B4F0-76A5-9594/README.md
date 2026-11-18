@@ -4,7 +4,7 @@
 - **Estudante:** Felipe de Lima Amarante
 - **Turma:** 2C
 - **Chave Única:** `P26-2C-7E6D-B4F0-76A5-9594`
-- **URL_CLOUDFLARE:** `https://p26-2c-7e6d-b4f0-76a5-9594.pages.dev` *(Atualize com a URL pública real do seu deploy na Cloudflare antes de abrir o Pull Request)*
+- **URL_CLOUDFLARE:** `https://avalia2026-2ativi.pages.dev`
 
 ---
 
@@ -40,7 +40,7 @@ A lógica de negócios, validada nas Cloudflare Pages Functions antes da gravaç
    - Na aba **OAuth2**:
      - Copie o **Client ID** e gere o **Client Secret**.
      - Em **Redirects**, adicione a URL exata do deploy:
-       `https://p26-2c-7e6d-b4f0-76a5-9594.pages.dev/api/auth/discord/callback`
+       `https://avalia2026-2ativi.pages.dev/api/auth/discord/callback`
    - No painel do seu projeto no Cloudflare Pages:
      - Acesse **Settings** → **Environment variables**.
      - Adicione as variáveis de ambiente:
